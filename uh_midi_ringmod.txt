@@ -1,0 +1,39 @@
+desc: MIDI note matched Amplitude Modulator
+
+slider1:1.0<0,4.0,0.001>Modulation Depth
+slider2:0<-8,8,0.001>Octave Shift
+slider3:0<-12,12,0.0125>Note Shift
+
+@slider
+depth=slider1;
+shift=12*slider2+slider3;
+
+@init
+a_flat_note = 69;
+a_flat_hz = 440;
+
+@block
+while (
+  midirecv(ts,msg1,msg23) ? 
+  (
+    m=msg1&240;
+    note=msg23&127;
+    note ? ( // todo, proper check on midi up/down
+      rel_note = note-a_flat_note; // todo, add portamento :)
+    );
+    midisend(ts,msg1,msg23);
+  );
+);
+hz = (a_flat_hz*2^((rel_note+shift)/12));
+hz = min(hz, 0.5*srate);
+x = 2*$pi*hz*1/srate;
+
+@sample
+gain = (0.5-0.5*min(depth, 1)*sin(t));
+depth > 1.0 ? (
+  gain = gain^depth^depth^depth^depth; // TODO, slider between log and exp ...
+);
+spl0=spl0*gain;
+spl1=spl1*gain;
+t=t+x;
+
